@@ -1,0 +1,57 @@
+{
+  "name": "cue",
+  "productName": "Cue",
+  "version": "0.1.0",
+  "description": "Context-aware desktop launcher",
+  "main": "electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev:vite": "vite",
+    "dev:electron": "wait-on --verbose http://127.0.0.1:5173 && cross-env NODE_ENV=development electron .",
+    "dev": "concurrently -k \"npm:dev:vite\" \"npm:dev:electron\"",
+    "build:vite": "vite build",
+    "build": "npm run build:vite && electron-builder",
+    "backend:install": "python -m venv backend/.venv && backend/.venv/Scripts/pip install -r backend/requirements.txt",
+    "backend:dev": "backend/.venv/Scripts/python backend/main.py"
+  },
+  "build": {
+    "appId": "com.cue.launcher",
+    "productName": "Cue",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "backend/**/*",
+      "!backend/.venv"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": ["**/*", "!.venv"]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    }
+  },
+  "dependencies": {
+    "fuse.js": "7.5.0",
+    "lucide-react": "1.24.0",
+    "mathjs": "15.2.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.2",
+    "@vitejs/plugin-react": "6.0.3",
+    "concurrently": "10.0.3",
+    "cross-env": "10.1.0",
+    "electron": "43.1.0",
+    "electron-builder": "26.15.3",
+    "framer-motion": "12.42.2",
+    "tailwindcss": "4.3.2",
+    "vite": "8.1.4",
+    "wait-on": "9.0.10"
+  }
+}
