@@ -300,6 +300,23 @@ ipcMain.handle('shell:reveal', (_event, target) => {
     shell.showItemInFolder(target);
 });
 
+const SYSTEM_COMMANDS = {
+    lock: 'rundll32.exe user32.dll,LockWorkStation',
+    sleep: 'rundll32.exe powrprof.dll,SetSuspendState 0,1,0',
+    restart: 'shutdown /r /t 0',
+    shutdown: 'shutdown /s /t 0',
+    signout: 'shutdown /l'
+};
+
+ipcMain.handle('system:command', (_event, command) => {
+    const cmd = SYSTEM_COMMANDS[command];
+    if (!cmd) return false;
+    exec(cmd, (err) => {
+        if (err) console.error(`System command "${command}" failed:`, err.message);
+    });
+    return true;
+});
+
 app.whenReady().then(async () => {
     startBackend();
     createWindow();
