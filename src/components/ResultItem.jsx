@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Calculator, Fingerprint, Binary, Braces, Clock, Hash, AppWindow, ClipboardList, AlertCircle, Trash2, ArrowRight, Download, FileStack, Languages, Coins, X,
+  Calculator, Fingerprint, Binary, Braces, Clock, Hash, AppWindow, ClipboardList, AlertCircle, Trash2, ArrowRight, Download, FileStack, Languages, Coins, X, NotebookText, Power,
 } from 'lucide-react';
 import { getAppIconDataUrl } from '../lib/iconCache.js';
 
@@ -34,6 +34,9 @@ function ResultIcon({ result, accentColor }) {
       cancelled = true;
     };
   }, [result.kind, result.iconPath]);
+  if (result.kind === 'emoji') {
+    return <span className="text-base leading-none">{result.title}</span>
+  }
   if (result.kind === 'app') {
     if (appIconSrc) {
       return <img src={appIconSrc} alt="" className="h-5 w-5 rounded-sm" />;
@@ -55,6 +58,13 @@ function ResultIcon({ result, accentColor }) {
   if (result.kind === 'shelf') {
     return <Download size={16} color={accentColor} />
   }
+  if (result.kind === 'snippet') {
+    return <NotebookText size={16} color={accentColor} />;
+  }
+  if (result.kind === 'system') {
+    return <Power size={16} color={result.isError ? '#EF4444' : accentColor} />;
+  }
+  
   const Icon = DEVTOOL_ICONS[result.id] ?? Hash;
   return <Icon size={16} color={result.isError ? '#EF4444' : accentColor} />;
 }
@@ -91,7 +101,7 @@ export default function ResultItem({ result, isSelected, accentColor, onClick, o
             </div>
         )}
       </div>
-      {result.kind === 'shelf' && onRemove && (
+      {(result.kind === 'shelf' || result.kind === 'snippet') && onRemove && (
         <button
           type="button"
           onClick={(e) => {
