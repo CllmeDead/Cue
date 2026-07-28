@@ -8,8 +8,9 @@ import { colorConvertTool } from './devTools/colorConvertTool.js';
 import { regexTestTool } from './devTools/regexTestTool.js';
 import { wordCountTool } from './devTools/wordCountTool.js';
 import { loremIpsumTool } from './devTools/loremIpsumTool.js';
+import { emojiTool } from './devTools/emojiTool.js';
 
-const TOOLS = [uuidTool, base64Tool, jsonTool, timestampTool, baseConversionTool, caseConvertTool, colorConvertTool, regexTestTool, wordCountTool, loremIpsumTool,];
+const TOOLS = [uuidTool, base64Tool, jsonTool, timestampTool, baseConversionTool, caseConvertTool, colorConvertTool, regexTestTool, wordCountTool, loremIpsumTool, emojiTool, ];
 export function runDevTools(query) {
     for (const tool of TOOLS) {
         const result = tool(query);
