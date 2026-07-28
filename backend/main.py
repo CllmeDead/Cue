@@ -11,7 +11,7 @@ import download_manager
 import file_convert
 import translation
 from context_detector import ContextDetector, DetectedContext
-from models import ( HealthOut, ModeOut, AppOut, ClipboardEntryIn, ClipboardEntryOut, ConvertRequestIn, ConvertResultOut, CurrencyConvertOut, DownloadJobOut, DownloadRequestIn, ShelfItemIn, ShelfItemOut, TranslateOut, )
+from models import ( HealthOut, ModeOut, AppOut, ClipboardEntryIn, ClipboardEntryOut, ConvertRequestIn, ConvertResultOut, CurrencyConvertOut, DownloadJobOut, DownloadRequestIn, ShelfItemIn, ShelfItemOut, TranslateOut, ProcessOut, SnippetIn, SnippetOut, SystemStatsOut, )
 from modes_seed import DEFAULT_MODES
 
 @asynccontextmanager
@@ -160,6 +160,31 @@ async def delete_shelf_item(item_id: int) -> dict:
     removed = database.remove_shelf_item(item_id)
     if not removed:
         raise HTTPException(status_code=404, detail="No such shelf item")
+    return {"removed": True}
+
+@app.get("/system/stats", response_model=SystemStatsOut)
+async def get_system_stats() -> SystemStatsOut:
+    stats = await asyncio.get_running_loop().run_in_executor(None, system_stats.get_system_stats)
+    return SystemStatsOut(**stats)
+
+@app.get("/system/processes", response_model=list[ProcessOut])
+async def get_top_processes(limit: int = 5) -> list[ProcessOut]:
+    processes = await asyncio.get_running_loop().run_in_executor(None, system_stats.get_top_processes, limit)
+    return [ProcessOut(**p) for p in processes]
+
+@app.get("/snippets", response_model=list[SnippetOut])
+async def list_snippets() -> list[SnippetOut]:
+    return [SnippetOut(**s) for s in database.fetch_snippets()]
+
+@app.post("/snippets", response_model=SnippetOut)
+async def save_snippet(snippet: SnippetIn) -> SnippetOut:
+    return SnippetOut(**database.upsert_snippet(snippet.name, snippet.content))
+
+@app.delete("/snippets/{item_id}")
+async def delete_snippet(item_id: int) -> dict:
+    removed = database.remove_snippet(item_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="No such snippet")
     return {"removed": True}
 
 @app.websocket("/ws/context")
