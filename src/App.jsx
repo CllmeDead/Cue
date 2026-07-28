@@ -13,8 +13,11 @@ import { parseTranslateQuery, useTranslation } from './lib/useTranslation.js';
 import { parseDownloadQuery, useDownloadManager } from './lib/useDownloadManager.js'
 import { useFileConversion } from './lib/useFileConversion.js';
 import { useFileShelf } from './lib/useFileShelf.js'
+import { useSnippets, parseSnippetQuery } from './lib/useSnippets.js';
+import { useSystemStats } from './lib/useSystemStats.js';
+import { useSystemCommands, parseSystemCommand } from './lib/useSystemCommands.js';
 import {
-    buildConvertResults, buildShelfResults, buildDownloadResults, buildTranslateResults, buildCurrencyResult,
+    buildConvertResults, buildShelfResults, buildDownloadResults, buildTranslateResults, buildCurrencyResult, buildSnippetResults, buildSystemCommandResult,
 } from './lib/specialModeResults.js'
 
 export default function App() {
@@ -58,11 +61,34 @@ export default function App() {
     const isShelfMode = /^shelf\b/i.test(trimmedQuery);
     const downloadUrl = parseDownloadQuery(query);
     const translateParsed = parseTranslateQuery(query);
+    const isActivityMode = /^(?:activity|system)$/i.test(trimmedQuery);
+    const isDashboardMode = /^dashboard$/i.test(trimmedQuery);
+    const snippetParsed = parseSnippetQuery(query);
+    const systemCommandParsed = parseSystemCommand(query);
     const fileConversion = useFileConversion(backendBaseUrl);
     const fileShelf = useFileShelf(backendBaseUrl, backendConnected, visible && isShelfMode);
     const downloadManager = useDownloadManager(backendBaseUrl);
     const currencySymbols = useCurrencySymbols(backendBaseUrl, backendConnected);
     const translationState = useTranslation(backendBaseUrl, translateParsed);
+    const snippets = useSnippets(backendBaseUrl, backendConnected, visible && snippetParsed !== null);
+    const systemStats = useSystemStats(backendBaseUrl, visible && (isActivityMode || isDashboardMode));
+    const systemCommands = useSystemCommands();
+    useEffect(() => {
+        if (systemCommandParsed?.command !== systemCommands.armed) {
+            systemCommands.resetArmed();
+        }
+    }, [query]);
+    const modeStartRef = useRef(Date.now());
+    useEffect(() => {
+        modeStartRef.current = Date.now();
+    }, [currentModeId]);
+    const [now, setNow] = useState(() => new Date());
+    useEffect (() => {
+        if (!isDashboardMode) return undefined;
+        const handle = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(handle);
+    }, [isDashboardMode]);
+    const modeUptimeSeconds = Math.floor((now.getTime() - modeStartRef.current) / 1000);
     const mathResult = useMemo(() => evaluateMathQuery(query), [query]);
     const currencyParsed =
         !isCameraMode && !isConvertMode && !isShelfMode && !downloadUrl && !translateParsed && !mathResult
@@ -78,13 +104,15 @@ export default function App() {
         if (isShelfMode) return buildShelfResults(fileShelf);
         if (downloadUrl) return buildDownloadResults(downloadUrl, downloadManager.job);
         if (translateParsed) return buildTranslateResults(translateParsed, translationState);
+        if (snippetParsed) return buildSnippetResults(snippetParsed, snippets);
+        if (systemCommandParsed) return buildSystemCommandresult(systemCommandParsed, systemCommands);
         if (currencyParsed) {
             const currencyRow = buildCurrencyResult(currencyState);
             return currencyRow ? [currencyRow, ...baseResults] : baseResults;
         }
         return baseResults;
     }, [
-        isConvertMode, fileConversion, isShelfMode, fileShelf, downloadUrl, downloadUrl, downloadManager.job, translateParsed, translationState, currencyParsed, currencyState, baseResults,
+        isConvertMode, fileConversion, isShelfMode, fileShelf, downloadUrl, downloadManager.job, translateParsed, translationState, snippetParsed, snippets, systemCommandParsed, systemCommands, currencyParsed, currencyState, baseResults,
     ]);
     useEffect(() => {
         setSelectedIndex((prev) => Math.min(prev, Math.max(results.length - 1, 0)));
@@ -112,6 +140,18 @@ export default function App() {
                         setQuery('');
                         setVisible(false);
                         break;
+                    case 'save-snippet':
+                        await snippets.saveSnippet(result.action.name, result.action.content);
+                        setQuery('snippets');
+                        break;
+                    case 'system-command': {
+                        const executed = systemCommands.trigger(result.action.command, result.action.destructive);
+                        if (executed) {
+                            setQuery('');
+                            setVisible(false);
+                        }
+                        break;
+                    }
                     default:
                         break;
                 }
@@ -127,7 +167,14 @@ export default function App() {
             }
             setVisible(false);
         },
-        [refreshClipboardHistory, fileConversion, fileShelf, downloadManager],
+        [refreshClipboardHistory, fileConversion, fileShelf, downloadManager, snippets, systemCommands],
+    );
+    const handleRemoveRow = useCallback(
+        (result) => {
+            if (result.kind === 'shelf') fileShelf.removeFromShelf(result.removeAction.id);
+            else if (result.kind === 'snippet') snippets.removeSnippet(result.removeAction.id);
+        },
+        [fileShelf, snippets],
     );
     const handleKeyDown = useCallback(
         (event) => {
@@ -180,7 +227,14 @@ export default function App() {
                         suggestions={suggestions}
                         onSuggestionClick={(example) => setQuery(example)}
                         cameraMode={isCameraMode}
-                        onRemoveShelfItem={(id) => fileShelf.removeFromShelf(id)}
+                        activityMode={isActivityMode}
+                        dashboardMode={isDashboardMode}
+                        systemStats={systemStats.stats}
+                        systemProcesses={systemStats.processes}
+                        modeUptimeSeconds={modeUptimeSeconds}
+                        now={now}
+                        clipboardEntries={clipboardEntries}
+                        shelfItems={fileShelf.items}
                     />
                 )}
             </AnimatePresence>
