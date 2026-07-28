@@ -25,4 +25,5 @@ contextBridge.exposeInMainWorld('cue', {
     toggleOverlay: () => ipcRenderer.invoke('overlay:toggle'),
     pickFile: (options) => ipcRenderer.invoke('dialog:pick-file', options),
     revealInFolder: (targetPath) => ipcRenderer.invoke('shell:reveal', targetPath),
+    systemCommand: (command) => ipcRenderer.invoke('system:command', command),
 });
