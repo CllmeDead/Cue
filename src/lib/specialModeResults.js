@@ -146,3 +146,50 @@ export function buildCurrencyResult(currencyState) {
         copyValue: formattedAmount,
     };
 }
+
+export function buildSnippetResults(parsed, snippets) {
+    if (!parsed) return [];
+    if (parsed.mode === 'add') {
+        if (!parsed.name || !parsed.content) return [];
+        return [{
+        id: 'snippet-add',
+        kind: 'action',
+        title: `Save snippet "${parsed.name}"`,
+        subtitle: parsed.content.length > 60 ? `${parsed.content.slice(0, 60)}..` : parsed.content,
+        action: { type: 'save-snippet', name: parsed.name, content: parsed.content },
+        }];
+    }
+    const search = parsed.search.toLowerCase();
+    const filtered = search
+        ? snippets.items.filter((item) => item.name.toLowerCase().includes(search))
+        : snippets.items;
+    if (filtered.length === 0) {
+        return [{
+            id: 'snippet-empty',
+            kind: 'snippet',
+            title: search ? `No snippets match "${parsed.search}"` : 'No snippets yet',
+            subtitle: 'Try: snippet add name: content',
+        }];
+    }
+    return filtered.map((item) => ({
+        id: `snippet-${item.id}`,
+        kind: 'snippet',
+        title: item.name,
+        subtitle: item.content.length > 60 ? `${item.content.slice(0, 60)}..` : item.content,
+        copyValue: item.content,
+        removeAction: { id: item.id },
+    }));
+}
+
+export function buildSystemCommandResult(parsed, systemCommands) {
+    if (!parsed) return [];
+    const armed = systemCommands.armed === parsed.command;
+    return [{
+        id: `system-${parsed.command}`,
+        kind: 'system',
+        title: armed ? `Press Enter again to confirm: ${parsed.label}` : parsed.label,
+        subtitle: parsed.destructive ? (armed ? 'Tihs cannot be undone' : 'Destructive - press Enter twice') : undefined,
+        isError: armed,
+        action: { type: 'system-command', command: parsed.command, destructive: parsed.destructive },
+    }];
+}
