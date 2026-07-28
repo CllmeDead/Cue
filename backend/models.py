@@ -72,3 +72,27 @@ class ShelfItemOut(BaseModel):
 
 class ShelfItemIn(BaseModel):
     path: str
+
+class SystemStatsOut(BaseModel):
+    cpu_percent: float
+    memory_percent: float
+    memory_used_gb: float
+    memory_total_gb: float
+    disk_percent: float
+    disk_used_gb: float
+    disk_total_gb: float
+
+class ProcessOut(BaseModel):
+    pid: int
+    name: str
+    memory_mb: float
+
+class SnippetOut(BaseModel):
+    id: int
+    name: str
+    content: str
+    created_at: str
+
+class SnippetIn(BaseModel):
+    name: str
+    content: str
