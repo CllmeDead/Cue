@@ -2,6 +2,9 @@ import { motion } from 'framer-motion';
 import * as Icons from 'lucide-react';
 import SearchBar from './SearchBar.jsx';
 import ResultsList from './ResultsList.jsx'
+import CameraPreview from './CameraPreview.jsx';
+import ActivityMonitor from './ActivityMonitor.jsx';
+import WidgetDashboard from './WidgetDashboard.jsx';
 
 const MODE_PLACEHOLDERS = {
     coding: "Try 'case', 'color #hex', 'regex', or search an app...",
@@ -25,7 +28,15 @@ export default function Overlay({
     suggestions,
     onSuggestionClick,
     cameraMode,
-    onRemoveShelfItem,
+    onRemoveRow,
+    activityMode,
+    dashboardMode,
+    systemStats,
+    systemProcesses,
+    modeUptimeSeconds,
+    now,
+    clipboardEntries,
+    shelfItems,
 }) {
     const Icon = Icons[mode.icon] ?? Icons.Circle;
     const placeholder = MODE_PLACEHOLDERS[mode.id] ?? DEFAULT_PLACEHOLDER;
@@ -78,6 +89,17 @@ export default function Overlay({
             )}
             {cameraMode ? (
                 <CameraPreview />
+            ) : activityMode ? (
+                <ActivityMonitor stats={systemStats} processes={systemProcesses} accentColor={mode.accentColor} />
+            ) : dashboardMode ? (
+                <WidgetDashboard
+                    mode={mode}
+                    modeUptimeSeconds={modeUptimeSeconds}
+                    now={now}
+                    stats={systemStats}
+                    clipboardEntries={clipboardEntries}
+                    shelfItems={shelfItems}
+                />
             ) : (
                 <ResultsList
                     results={results}
@@ -87,7 +109,7 @@ export default function Overlay({
                     onSelect={onSelectIndex}
                     onHover={onHoverIndex}
                     onDelete={onDeleteIndex}
-                    onRemove={onRemoveShelfItem}
+                    onRemove={onRemoveRow}
                 />
             )}
             <div className="mt-4 flex-items-center justify-between border-t border-white/[0.06] pt-3">
