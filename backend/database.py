@@ -62,6 +62,13 @@ CREATE TABLE IF NOT EXISTS file_shelf (
     name        TEXT NOT NULL,
     added_at    TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS snippets (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL UNIQUE,
+    content     TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
 """
 @contextmanager
 def get_connection() -> Iterator[sqlite3.Connection]:
@@ -186,4 +193,31 @@ def fetch_shelf_items() -> list[dict]:
 def remove_shelf_item(item_id: int) -> bool:
     with get_connection() as conn:
         cursor = conn.execute("DELETE FROM file_shelf WHERE id = ?", (item_id,))
+        return cursor.rowcount > 0
+
+def upsert_snippet(name: str, content: str) -> dict:
+    now = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO snippets (name, content, created_at) VALUES (?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET content = excluded.content
+            """,
+            (name, content, now),
+        )
+        row = conn.execute(
+            "SELECT id, name, content, created_at FROM snippets WHERE name = ?", (name,)
+        ).fetchone()
+        return dict(row)
+
+def fetch_snippets() -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, name, content, created_at FROM snippets ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+def remove_snippet(item_id: int) -> bool:
+    with get_connection() as conn:
+        cursor = conn.execute("DELETE FROM snippets WHERE id = ?", (item_id,))
         return cursor.rowcount > 0
