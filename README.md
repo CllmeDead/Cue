@@ -1,12 +1,12 @@
-Cue
+**Cue**
 
 Cue is a desktop launcher for Windows that pays attention to what you're doing. Press Ctrl+Space from anywhere and a small glass panel appears over your desktop. Type into it, and it becomes whatever tool you need next.
 
-Why ?
+**Why?**
 
 Most people switch various separate tools throughout the day like a calculator, a clipboard manager, a currency converter, some way to generate a UUID or format JSON. Each one on their separate app/tab, none of them know what you're actually working on. Cue puts all of that behind. One shortcut and one search bar, and it adjusts itself on what's running, coding, writing, gaming, browsing, on a call, or listening to music. Each get their own color and their own tools.
 
-What it does ?
+**What it does?**
 
 It launches things. Search installed apps by name and open them directly from the search bar.
 Does math without a calculator, and even unit conversions. Ex - 12 * 4, 10 km to mi, 100 f to c and the answer appears live. Works the same for currency conversion - 10 usd to inr.
@@ -27,7 +27,7 @@ It holds a shelf of files you're working with so you don't have to keep running 
 
 There's also a little bar that stays on top of your screen that shows current modes (coding, browsing, gaming, etc)
 
-Installing - 
+**Installing -** 
 This is currently a windows only app.
 
 Download the project then run - 
