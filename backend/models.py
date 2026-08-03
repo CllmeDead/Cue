@@ -96,3 +96,23 @@ class SnippetOut(BaseModel):
 class SnippetIn(BaseModel):
     name: str
     content: str
+
+class MediaControlIn(BaseModel):
+    action: str
+
+class MicMuteOut(BaseModel):
+    muted: bool
+
+class TriggerUsageIn(BaseModel):
+    trigger_key: str
+    mode_id: str
+
+class TriggerUsageOut(BaseModel):
+    trigger_key: str
+    count: int
+
+class FavoriteAppIn(BaseModel):
+    id: str
+    name: str
+    targetPath: str
+    arguments: str = ""
