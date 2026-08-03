@@ -10,6 +10,14 @@ export const MODE_SUGGESTIONS = {
         { label: 'count your draft', example: 'count ' },
         { label: 'lorem 50', example: 'lorem 50' },
     ],
+    gaming: [
+        { label: 'activity - check performance while playing', example: 'activity' },
+        { label: 'dashboard', example: 'dashboard' },
+    ],
+    browsing: [
+        { label: 'google <search>', example: 'google ' },
+        { label: 'yt <search>', example: 'yt ' },
+    ]
 };
 export function getModeSuggestions(modeId) {
     return MODE_SUGGESTIONS[modeId] ?? [];
