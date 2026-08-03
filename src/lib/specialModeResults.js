@@ -41,7 +41,8 @@ export function buildShelfResults(fileShelf) {
         subtitle: 'Enter to open file picker',
         action: { type: 'add-shelf-files' },
     };
-    const itemRows = fileShelf.item.map((item) => ({
+    const items = fileShelf?.items ?? [];
+    const itemRows = fileShelf.items.map((item) => ({
         id: `shelf-${item.id}`,
         kind: 'shelf',
         title: item.path,
@@ -112,7 +113,7 @@ export function buildTranslateResults(parsed, translationState) {
                 id: 'translate-error',
                 kind: 'devtool',
                 title: 'Translation failed',
-                subtitle: translateState.error,
+                subtitle: translationState.error,
                 isError: true 
             }
         ];
@@ -192,4 +193,56 @@ export function buildSystemCommandResult(parsed, systemCommands) {
         isError: armed,
         action: { type: 'system-command', command: parsed.command, destructive: parsed.destructive },
     }];
+}
+
+export function buildMicResult(micState) {
+    if (micState.error) {
+        return [{ id: 'mic-error', kind: 'action', title: micState.error, isError: true }];
+    }
+    if (micState.muted === null) {
+        return [{ id: 'mic-loading', kind: 'action', title: 'Checking microphone..' }];
+    }
+    return [{
+        id: 'mic-toggle',
+        kind: 'action',
+        title: micState.muted ? 'Microphone is muted - click to unmute' : 'Microphone is live - click to mute',
+        subtitle: 'Cue . Call control',
+        action: { type: 'toggle-mic' },
+    }];
+}
+
+export function buildMediaResult(parsed) {
+    return [{
+        id: `media-${parsed.action}`,
+        kind: 'action',
+        title: parsed.label,
+        subtitle: 'Cue . Media control',
+        action: { type: 'media-command', mediaAction: parsed.action },
+    }];
+}
+
+export function buildWebSearchResult(parsed) {
+    return [{
+        id: `websearch-${parsed.prefix}`,
+        kind: 'action',
+        title: `Search ${parsed.prefix} for "${parsed.search}`,
+        subtitle: parsed.url,
+        action: { type: 'open-url', url: parsed.url },
+    }];
+}
+
+export function buildFrequentAppsResults(topTriggers, apps) {
+    if (!topTriggers?.length || !apps?.length) return [];
+    const appById = new Map(apps.map((a) => [`app-${a.id}`, a]));
+    return topTriggers
+        .map((t) => appById.get(t.trigger_key))
+        .filter(Boolean)
+        .map((app) => ({
+            id: `frequent-${app.id}`,
+            kind: 'app',
+            title: app.name,
+            subtitle: 'Frequently used',
+            iconPath: app.targetPath,
+            launch: { targetPath: app.targetPath, arguments: app.arguments },
+        }));
 }
