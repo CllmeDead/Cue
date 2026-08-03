@@ -69,6 +69,22 @@ CREATE TABLE IF NOT EXISTS snippets (
     content     TEXT NOT NULL,
     created_at  TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS trigger_usage (
+    trigger_key TEXT NOT NULL,
+    mode_id     TEXT NOT NULL,
+    count       INTEGER NOT NULL DEFAULT 0,
+    last_used_at TEXT NOT NULL,
+    PRIMARY KEY (trigger_key, mode_id)
+);
+
+CREATE TABLE IF NOT EXISTS favorite_apps (
+    app_id      TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    target_path TEXT NOT NULL,
+    arguments   TEXT NOT NULL DEFAULT '',
+    sort_order  INTEGER NOT NULL
+);
 """
 @contextmanager
 def get_connection() -> Iterator[sqlite3.Connection]:
@@ -221,3 +237,48 @@ def remove_snippet(item_id: int) -> bool:
     with get_connection() as conn:
         cursor = conn.execute("DELETE FROM snippets WHERE id = ?", (item_id,))
         return cursor.rowcount > 0
+
+def record_trigger_usage(trigger_key: str, mode_id: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO trigger_usage (trigger_key, mode_id, count, last_used_at)
+            VALUES (?, ?, 1, ?)
+            ON CONFLICT(trigger_key, mode_id) DO UPDATE SET
+                count = count + 1,
+                last_used_at = excluded.last_used_at
+            """,
+            (trigger_key, mode_id, now),
+        )
+
+def fetch_top_triggers(mode_id: str, limit: int = 3) -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT trigger_key, count FROM trigger_usage
+            WHERE mode_id = ? ORDER BY count DESC, last_used_at DESC LIMIT ?
+            """,
+            (mode_id, limit),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+def fetch_favorite_apps() -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute("SELECT * FROM favorite_apps ORDER BY sort_order ASC").fetchall()
+    return [
+        {"id": r["app_id"], "name": r["name"], "targetPath": r["target_path"], "arguments": r["arguments"]}
+        for r in rows
+    ]
+
+def add_favorite_app(app_id: str, name: str, target_path: str, arguments: str = "") -> None:
+    with get_connection() as conn:
+        next_order = conn.execute("SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM favorite_apps").fetchone()["n"]
+        conn.execute(
+            "INSERT OR IGNORE INTO favorite_apps (app_id, name, target_path, arguments, sort_order) VALUES (?, ?, ?, ?, ?)",
+            (app_id, name, target_path, arguments, next_order),
+        )
+
+def remove_favorite_app(app_id: str) -> None:
+    with get_connection() as conn:
+        conn.execute("DELETE FROM favorite_apps WHERE app_id = ?", (app_id,))
