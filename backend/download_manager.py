@@ -61,3 +61,6 @@ def run_job(job_id: str) -> None:
 
 def get_job(job_id: str) -> dict | None:
     return _jobs.get(job_id)
+
+def list_jobs() -> list[dict]:
+    return list(reversed(list(_jobs.values())))
