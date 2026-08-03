@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 
-const SearchBar = forwardRef(function SearchBar({ value, onChange, onKeyDown }, ref) {
+const SearchBar = forwardRef(function SearchBar({ value, onChange, onKeyDown, placeholder }, ref) {
     return (
         <input
             ref={ref}
@@ -8,7 +8,7 @@ const SearchBar = forwardRef(function SearchBar({ value, onChange, onKeyDown }, 
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search apps, do math, or try 'uuid', 'json {...}', 'base64 ...'"
+            placeholder={placeholder}
             spellCheck={false}
             autoComplete="off"
             className="w-full bg-transparent text-[15px] text-cue-text placeholder:text-cue-text-dim outline-none"
