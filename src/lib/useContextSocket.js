@@ -24,8 +24,8 @@ export function useContextSocket() {
         ws.onmessage = (event) => {
             try {
                 const payload = JSON.parse(event.data);
-                if (payload.mode_id) setCurrentModeId(payload.mode_id);
-                if (payload.app_name) setDetectedApp(payload.app_name);
+                if ('mode_id' in payload) setCurrentModeId(payload.mode_id);
+                if ('app_name' in payload) setDetectedApp(payload.app_name);
                 if (Array.isArray(payload.modes)) setModes(payload.modes);
             } catch {
 
