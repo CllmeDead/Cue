@@ -10,8 +10,11 @@ import currency
 import download_manager
 import file_convert
 import translation
+import system_stats
+import media_control
+import call_control
 from context_detector import ContextDetector, DetectedContext
-from models import ( HealthOut, ModeOut, AppOut, ClipboardEntryIn, ClipboardEntryOut, ConvertRequestIn, ConvertResultOut, CurrencyConvertOut, DownloadJobOut, DownloadRequestIn, ShelfItemIn, ShelfItemOut, TranslateOut, ProcessOut, SnippetIn, SnippetOut, SystemStatsOut, )
+from models import ( HealthOut, ModeOut, AppOut, ClipboardEntryIn, ClipboardEntryOut, ConvertRequestIn, ConvertResultOut, CurrencyConvertOut, DownloadJobOut, DownloadRequestIn, ShelfItemIn, ShelfItemOut, TranslateOut, ProcessOut, SnippetIn, SnippetOut, SystemStatsOut, MediaControlIn, MicMuteOut, TriggerUsageIn, TriggerUsageOut, FavoriteAppIn, )
 from modes_seed import DEFAULT_MODES
 
 @asynccontextmanager
@@ -186,6 +189,53 @@ async def delete_snippet(item_id: int) -> dict:
     if not removed:
         raise HTTPException(status_code=404, detail="No such snippet")
     return {"removed": True}
+
+
+@app.post("/media/control")
+async def control_media(request: MediaControlIn) -> dict:
+    ok = await asyncio.get_running_loop().run_in_executor(None, media_control.send_media_key, request.action)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Unknown or unsupported action: {request.action}")
+    return {"ok": True}
+
+@app.get("/call/mic-status", response_model=MicMuteOut)
+async def mic_status() -> MicMuteOut:
+    try:
+        muted = await asyncio.get_running_loop().run_in_executor(None, call_control.get_mic_muted)
+    except Exception as err:
+        raise HTTPException(status_code=502, detail=str(err))
+    return MicMuteOut(muted=muted)
+
+@app.post("/call/mic-toggle", response_model=MicMuteOut)
+async def toggle_mic() -> MicMuteOut:
+    try:
+        muted = await asyncio.get_running_loop().run_in_executor(None, call_control.toggle_mic_mute)
+    except Exception as err:
+        raise HTTPException(status_code=502, detail=str(err))
+    return MicMuteOut(muted=muted)
+
+@app.get("/usage/top", response_model=list[TriggerUsageOut])
+async def top_usage(mode_id: str, limit: int = 3) -> list[TriggerUsageOut]:
+    return [TriggerUsageOut(**row) for row in database.fetch_top_triggers(mode_id, limit)]
+
+@app.post("/usage/record")
+async def record_usage(payload: TriggerUsageIn) -> dict:
+    database.record_trigger_usage(payload.trigger_key, payload.mode_id)
+    return {"ok": True}
+
+@app.get("/favorites")
+async def list_favorites() -> list[dict]:
+    return database.fetch_favorite_apps()
+
+@app.post("/favorites")
+async def add_favorite(payload: FavoriteAppIn) -> dict:
+    database.add_favorite_app(payload.id, payload.name, payload.targetPath, payload.arguments or "")
+    return {"ok": True}
+
+@app.delete("/favorites/{app_id}")
+async def delete_favorite(app_id: str) -> dict:
+    database.remove_favorite_app(app_id)
+    return {"ok": True}
 
 @app.websocket("/ws/context")
 async def ws_context(websocket: WebSocket) -> None:
