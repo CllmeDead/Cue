@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Calculator, Fingerprint, Binary, Braces, Clock, Hash, AppWindow, ClipboardList, AlertCircle, Trash2, ArrowRight, Download, FileStack, Languages, Coins, X, NotebookText, Power,
+  Calculator, Fingerprint, Binary, Braces, Clock, Hash, AppWindow, ClipboardList, AlertCircle, Trash2, ArrowRight, Download, FileStack, Languages, Coins, X, NotebookText, Power, Star
 } from 'lucide-react';
 import { getAppIconDataUrl } from '../lib/iconCache.js';
 
@@ -69,21 +69,26 @@ function ResultIcon({ result, accentColor }) {
   return <Icon size={16} color={result.isError ? '#EF4444' : accentColor} />;
 }
 
-export default function ResultItem({ result, isSelected, accentColor, onClick, onMouseEnter, onDelete, onRemove }) {
+const MONO_KINDS = new Set(['currency', 'download']);
+const MONO_IDS = new Set(['devtool-uuid', 'devtool-base64-decode', 'devtool-json-valid', 'devtool-json-invalid', 'devtool-base-conversion', 'currency-result']);
+
+export default function ResultItem({ result, isSelected, accentColor, onClick, onMouseEnter, onDelete, onRemove, onToggleFavorite }) {
+  const useMono = MONO_KINDS.has(result.kind) || MONO_IDS.has(result.id);
   return (
     <div
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       className="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition-colors"
       style={{
-        background: isSelected ? `${accentColor}18` : 'transparent',
+        background: isSelected ? 'rgb(255 255 255 / 0.12)' : 'transparent',
+        border: isSelected ? '1px solid rgb(255 255 255 / 0.10' : '1px solid transparent'
       }}
     >
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/5">
         <ResultIcon result={result} accentColor={accentColor} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-sm ${result.isError ? 'text-red-400' : 'text-cue-text'}`}>
+        <div className={`truncate text-sm ${useMono ? 'font-mono' : ''} ${result.isError ? 'text-red-400' : 'text-cue-text'}`}>
           {result.title}
         </div>
         {result.subtitle && (
@@ -91,24 +96,18 @@ export default function ResultItem({ result, isSelected, accentColor, onClick, o
         )}
         {result.kind === 'download' && (
           <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${result.percent ?? 8}%`,
-                background: accentColor,
-              }}
-            />
-            </div>
+            <div className="h-full rounded-full transition-all" style={{ width: `${result.percent ?? 8}%`, background: accentColor }} />
+          </div>
         )}
       </div>
+      {isSelected && !onRemove && !onDelete && (
+        <kbd className="shrink-0 rounded border border-white/10 px-1.5 text-[10px] text-cue-text-dim">↵</kbd>
+      )}
       {(result.kind === 'shelf' || result.kind === 'snippet') && onRemove && (
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(result.removeAction.id);
-          }}
-          className="shrink-0 rounded-md p-1 text-cue-text-dim hover: text-red-400"
+          onClick={(e) => { e.stopPropagation(); onRemove(result.removeAction.id); }}
+          className="shrink-0 rounded-md p-1 text-cue-text-dim hover:text-red-400"
           title="Remove from shelf"
         >
           <X size={14} />
@@ -116,14 +115,22 @@ export default function ResultItem({ result, isSelected, accentColor, onClick, o
       )}
       {onDelete && (
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="shrink-0 rounded-md p-1 text-cue-text-dim hover:text-red-400 hover:bg-white/5 transition-colors"
           title="Delete from history"
         >
           <Trash2 size={14} />
+        </button>
+      )}
+      {result.kind === 'app' && onToggleFavorite && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(result); }}
+          className="shrink-0 rounded-md p-1 text-cue-text-dim transition-transform hover:text-cue-text active:scale-90"
+          title={result.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          <Star size={13} fill={result.isFavorite ? 'currentColor' : 'none'} />
         </button>
       )}
     </div>
