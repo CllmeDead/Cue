@@ -14,6 +14,8 @@ const WINDOW_HEIGHT = 400;
 const CLIPBOARD_POLL_MS = 600;
 const BAR_WIDTH = 132;
 const BAR_HEIGHT = 30;
+const BAR_EXPANDED_WIDTH = 300;
+const BAR_EXPANDED_HEIGHT = 140;
 
 let mainWindow = null;
 let barWindow = null;
@@ -25,6 +27,17 @@ let lastSeenClipboardText = '';
 let suppressBlurHide = false;
 let overlayVisible = false;
 const iconCache = new Map();
+
+function setBarExpanded(expanded) {
+    if (!barWindow) return;
+    const { workAreaSize } = screen.getPrimaryDisplay();
+    const width = expanded ? BAR_EXPANDED_WIDTH : BAR_WIDTH;
+    const height = expanded ? BAR_EXPANDED_HEIGHT : BAR_HEIGHT;
+    barWindow.setBounds(
+        { x: Math.round((workAreaSize.width - width) / 2), y: 4, width, height },
+        true,
+    );
+}
 
 function resolveBackendCommand() {
     if (isDev) {
@@ -300,6 +313,10 @@ ipcMain.handle('shell:reveal', (_event, target) => {
     shell.showItemInFolder(target);
 });
 
+ipcMain.handle('shell:open-external', (_event, url) =>{
+    shell.openExternal(url);
+});
+
 const SYSTEM_COMMANDS = {
     lock: 'rundll32.exe user32.dll,LockWorkStation',
     sleep: 'rundll32.exe powrprof.dll,SetSuspendState 0,1,0',
@@ -316,6 +333,9 @@ ipcMain.handle('system:command', (_event, command) => {
     });
     return true;
 });
+
+ipcMain.handle('bar:expand', () => setBarExpanded(true));
+ipcMain.handle('bar:collapse', () => setBarExpanded(false));    
 
 app.whenReady().then(async () => {
     startBackend();
