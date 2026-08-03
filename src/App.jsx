@@ -17,8 +17,12 @@ import { useSnippets, parseSnippetQuery } from './lib/useSnippets.js';
 import { useSystemStats } from './lib/useSystemStats.js';
 import { useSystemCommands, parseSystemCommand } from './lib/useSystemCommands.js';
 import {
-    buildConvertResults, buildShelfResults, buildDownloadResults, buildTranslateResults, buildCurrencyResult, buildSnippetResults, buildSystemCommandResult,
+    buildConvertResults, buildShelfResults, buildDownloadResults, buildTranslateResults, buildCurrencyResult, buildSnippetResults, buildSystemCommandResult, buildFrequentAppsResults, buildWebSearchResult
 } from './lib/specialModeResults.js'
+import { isMicCommand, useMicStatus } from './lib/useMicControl.js';
+import { parseMediaCommand, sendMediaCommand } from './lib/useMediaControl.js';
+import { parseWebSearchQuery } from './data/searchEngines.js';
+import { useUsageRanking } from './lib/useUsageRanking.js';
 
 export default function App() {
     const [visible, setVisible] = useState(true);
@@ -26,6 +30,8 @@ export default function App() {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const searchInputRef = useRef(null);
     const { modes, currentModeId, detectedApp, backendConnected, backendBaseUrl } = useContextSocket();
+    const [activeView, setActiveView] = useState(null);
+    const [dashboardIndex, setDashboardIndex] = useState(0);
     const currentMode = getModeById(modes, currentModeId);
     useEffect(() => {
         if (!window.cue) return undefined;
@@ -49,7 +55,7 @@ export default function App() {
             window.cue?.confirmHideAnimationDone();
         }
     }, [visible]);
-    const appsFuse = useApps(backendBaseUrl, backendConnected);
+    const { appsFuse, apps } = useApps(backendBaseUrl, backendConnected);
     const { entries: clipboardEntries, refresh: refreshClipboardHistory, deleteEntry: deleteClipboardEntry } = useClipboardHistory(
         backendBaseUrl,
         backendConnected,
@@ -72,6 +78,11 @@ export default function App() {
     const translationState = useTranslation(backendBaseUrl, translateParsed);
     const snippets = useSnippets(backendBaseUrl, backendConnected, visible && snippetParsed !== null);
     const systemStats = useSystemStats(backendBaseUrl, visible && (isActivityMode || isDashboardMode));
+    const isMicMode = isMicCommand(trimmedQuery);
+    const mediaParsed = parseMediaCommand(trimmedQuery);
+    const webSearchParsed = parseWebSearchQuery(trimmedQuery);
+    const micState = useMicStatus(backendBaseUrl, visible && isMicMode);
+    const usageRanking = useUsageRanking(backendBaseUrl, backendConnected, currentModeId);
     const systemCommands = useSystemCommands();
     useEffect(() => {
         if (systemCommandParsed?.command !== systemCommands.armed) {
@@ -91,7 +102,7 @@ export default function App() {
     const modeUptimeSeconds = Math.floor((now.getTime() - modeStartRef.current) / 1000);
     const mathResult = useMemo(() => evaluateMathQuery(query), [query]);
     const currencyParsed =
-        !isCameraMode && !isConvertMode && !isShelfMode && !downloadUrl && !translateParsed && !mathResult
+        !isCameraMode && !isConvertMode && !isShelfMode && !downloadUrl && !translateParsed && !mathResult && !mediaParsed && !webSearchParsed
             ? parseCurrencyQuery(query, currencySymbols)
             : null;
     const currencyState = useCurrencyConversion(backendBaseUrl, currencyParsed);
@@ -105,14 +116,20 @@ export default function App() {
         if (downloadUrl) return buildDownloadResults(downloadUrl, downloadManager.job);
         if (translateParsed) return buildTranslateResults(translateParsed, translationState);
         if (snippetParsed) return buildSnippetResults(snippetParsed, snippets);
-        if (systemCommandParsed) return buildSystemCommandresult(systemCommandParsed, systemCommands);
+        if (systemCommandParsed) return buildSystemCommandResult(systemCommandParsed, systemCommands);
+        if (isMicMode) return buildMicResult(micState);
+        if (webSearchParsed) return buildWebSearchResult(webSearchParsed);
         if (currencyParsed) {
             const currencyRow = buildCurrencyResult(currencyState);
             return currencyRow ? [currencyRow, ...baseResults] : baseResults;
         }
+        if (!trimmedQuery) {
+            const frequent = buildFrequentAppsResults(usageRanking.topTriggers, apps);
+            return frequent.length ? [...frequent, ...baseResults] : baseResults;
+        }
         return baseResults;
     }, [
-        isConvertMode, fileConversion, isShelfMode, fileShelf, downloadUrl, downloadManager.job, translateParsed, translationState, snippetParsed, snippets, systemCommandParsed, systemCommands, currencyParsed, currencyState, baseResults,
+        isConvertMode, fileConversion, isShelfMode, fileShelf, downloadUrl, downloadManager.job, translateParsed, translationState, snippetParsed, snippets, systemCommandParsed, systemCommands, isMicMode, micState, mediaParsed, webSearchParsed, currencyParsed, currencyState, trimmedQuery, usageRanking.topTriggers, apps, baseResults,
     ]);
     useEffect(() => {
         setSelectedIndex((prev) => Math.min(prev, Math.max(results.length - 1, 0)));
@@ -144,6 +161,17 @@ export default function App() {
                         await snippets.saveSnippet(result.action.name, result.action.content);
                         setQuery('snippets');
                         break;
+                    case 'toggle-mic':
+                        await micState.toggle();
+                        break;
+                    case 'media-command':
+                        await sendMediaCommand(backendBaseUrl, result.action.mediaAction);
+                        break;
+                    case 'open-url':
+                        window.cue?.openExternal(result.action.url);
+                        setQuery('');
+                        setVisible(false);
+                        break;
                     case 'system-command': {
                         const executed = systemCommands.trigger(result.action.command, result.action.destructive);
                         if (executed) {
@@ -159,6 +187,7 @@ export default function App() {
             }
             if (result.launch) {
                 await window.cue?.launchApp(result.launch);
+                if (result.kind === 'app') usageRanking.recordUsage(result.id);
             } else if (result.copyValue != null) {
                 await window.cue?.writeClipboard(result.copyValue);
                 setTimeout(refreshClipboardHistory, 300);
@@ -167,7 +196,7 @@ export default function App() {
             }
             setVisible(false);
         },
-        [refreshClipboardHistory, fileConversion, fileShelf, downloadManager, snippets, systemCommands],
+        [refreshClipboardHistory, fileConversion, fileShelf, downloadManager, snippets, systemCommands, micState, usageRanking, backendBaseUrl],
     );
     const handleRemoveRow = useCallback(
         (result) => {
